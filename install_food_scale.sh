@@ -7,6 +7,9 @@ mkdir ~/food_scale
 cd ~/food_scale
 
 
+mkdir ~/downloads
+mkdir ~/images
+
 python3 -m venv --system-site-packages venv
 source venv/bin/activate
 
