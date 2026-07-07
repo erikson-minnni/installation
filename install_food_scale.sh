@@ -17,5 +17,5 @@ pip install gspread google-auth flask
 
 sudo apt install python3-opencv
 
-wget https://github.com/erikson-minnni/installation/blob/main/mainm.py
-wget https://github.com/erikson-minnni/installation/blob/main/ai_camera.py
+wget https://raw.githubusercontent.com/erikson-minnni/installation/main/ai_camera.py
+wget https://raw.githubusercontent.com/erikson-minnni/installation/main/mainm.py
