@@ -11,7 +11,8 @@ download the json file and rename it to credentials.json
 
 connect to rclone by downloading rclone on windows, pasting the rclone.exe in the command prompt window and typing:
 
-"C:\Path\To\Your\Folder\rclone.exe" authorize "drive"
+"C:\Path\To\Your\Folder\rclone.exe" authorize "drive"  "eyJzY29wZSI6ImRyaXZlIn0"
+
 
 than run:
 
