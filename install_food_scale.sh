@@ -18,5 +18,7 @@ pip install gspread google-auth flask
 sudo apt install python3-opencv
 sudo apt install imx500-all
 
+!curl https://rclone.org/install.sh | sudo bash
+
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/ai_camera.py
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/mainm.py
