@@ -13,3 +13,6 @@ connect to rclone by downloading rclone on windows, pasting the rclone.exe in th
 
 "C:\Path\To\Your\Folder\rclone.exe" authorize "drive"
 
+than run:
+
+rclone config
