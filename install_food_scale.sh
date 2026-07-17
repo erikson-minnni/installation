@@ -3,11 +3,11 @@
 sudo apt update
 sudo apt upgrade
 
+mkdir ~/food_scale
 cd ~/food_scale
 
-mkdir ~/food_scale
-mkdir ~/downloads
-mkdir ~/images
+mkdir /home/pi/food_scale/downloads
+mkdir /home/pi/food_scale/images
 
 python3 -m venv --system-site-packages venv
 source venv/bin/activate
