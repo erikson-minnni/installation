@@ -3,10 +3,9 @@
 sudo apt update
 sudo apt upgrade
 
-mkdir ~/food_scale
 cd ~/food_scale
 
-
+mkdir ~/food_scale
 mkdir ~/downloads
 mkdir ~/images
 
