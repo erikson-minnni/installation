@@ -134,7 +134,7 @@ def update_model():
     folder_path = "/home/pi/food_scale/downloads/"
     """Deletes all files inside the specified folder."""
     if not os.path.exists(folder_path):
-        print(f"Folder {folder_path_deleate} does not exist.")
+      #  print(f"Folder {folder_path_deleate} does not exist.")
         return
 
     for filename in os.listdir(folder_path):
