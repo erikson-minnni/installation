@@ -17,15 +17,3 @@ connect to rclone by downloading rclone on windows, pasting the rclone.exe in th
 than run:
 
 rclone config
-
-
-----------------------
-
-sudo apt-get install -y git build-essential liblgpio-dev
-
-git clone --depth=1 https://github.com/endail/hx711
-
-sudo make install
-
-
-sudo ldconfig
