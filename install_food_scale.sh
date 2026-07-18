@@ -19,5 +19,17 @@ sudo apt install imx500-all
 
 !curl https://rclone.org/install.sh | sudo bash
 
+
+sudo apt-get install -y git build-essential liblgpio-dev
+
+git clone --depth=1 https://github.com/endail/hx711
+
+sudo make install
+
+
+sudo ldconfig
+
+
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/ai_camera.py
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/mainm.py
+wget https://raw.githubusercontent.com/erikson-minnni/installation/main/main.py
