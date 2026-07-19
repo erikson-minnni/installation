@@ -19,14 +19,14 @@ sudo apt install imx500-all
 
 
 
-sudo apt-get install -y git build-essential liblgpio-dev
+#sudo apt-get install -y git build-essential liblgpio-dev
 
-git clone --depth=1 https://github.com/endail/hx711
+#git clone --depth=1 https://github.com/endail/hx711
 
-sudo make install
+#sudo make install
 
 
-sudo ldconfig
+#sudo ldconfig
 
 sudo -v ; curl https://rclone.org/install.sh | sudo bash
 
