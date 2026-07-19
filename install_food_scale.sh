@@ -33,3 +33,4 @@ sudo -v ; curl https://rclone.org/install.sh | sudo bash
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/ai_camera.py
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/mainm.py
 wget https://raw.githubusercontent.com/erikson-minnni/installation/main/main.py
+wget https://raw.githubusercontent.com/erikson-minnni/installation/main/m.py
