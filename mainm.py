@@ -9,7 +9,6 @@ import threading
 from flask import Flask, render_template_string, jsonify
 import queue
 import shutil
-from HX711 import SimpleHX711
 from collections import deque
 import uuid
 import asyncio
@@ -23,6 +22,10 @@ CHAR_UUID = "abcdef01-1234-5678-1234-56789abcdef0"
 current_scale_weight = 0
 current_detected_food = "None"
 
+# Global handles to manage remote BLE writes from sync threads
+ble_client = None
+ble_loop = None
+
 def notification_handler(sender, data):
     global current_scale_weight
     weight = data.decode('utf-8')
@@ -30,7 +33,8 @@ def notification_handler(sender, data):
     print(f"Weight received: {current_scale_weight}g")
 
 async def ble_manager():
-    """Handles the async BLE connection using hardcoded MAC."""
+    """Handles the async BLE connection and exposes client globally."""
+    global ble_client
     while True:
         try:
             print(f"Connecting directly to {PICO_MAC_ADDRESS}...")
@@ -42,31 +46,32 @@ async def ble_manager():
                 continue
 
             async with BleakClient(PICO_MAC_ADDRESS) as client:
+                ble_client = client
                 print("Connected!")
                 await client.start_notify(CHAR_UUID, notification_handler)
                 
                 while client.is_connected:
                     await asyncio.sleep(0.5)
             
+            ble_client = None
             print("Disconnected. Retrying...")
             await asyncio.sleep(2)
             
         except Exception as e:
+            ble_client = None
             print(f"BLE Error: Could not connect to {PICO_MAC_ADDRESS}. Retrying in 5s...")
             traceback.print_exc()
             await asyncio.sleep(3)
 
 def start_ble_thread():
-    print("ok")
-    """Runs the asyncio event loop inside a separate thread."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(ble_manager())
+    """Runs the asyncio event loop inside a separate thread and captures loop reference."""
+    global ble_loop
+    print("Starting BLE thread...")
+    ble_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(ble_loop)
+    ble_loop.run_until_complete(ble_manager())
 
-REF_UNIT = -290
-OFFSET_VAL = -152560
-
-print("Scale configured with a 3g noise gate. Ready to weigh!")
+print("Scale configured with BLE remote architecture. Ready!")
 
 readings = deque(maxlen=3)
 
@@ -101,7 +106,6 @@ HTML_PAGE = """
             fetch('/trigger/' + val);
         }
 
-        // Update weight and detected food every 50ms
         setInterval(function() {
             fetch('/get-weight')
             .then(response => response.json())
@@ -125,7 +129,6 @@ scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
-
 database_sheet = client.open_by_key(SHEET_ID).worksheet("food_data")
 
 model_path = "/home/pi/food_scale/my_modelrpk/network.rpk"
@@ -173,11 +176,8 @@ def trigger(action):
     return jsonify(status="success", received=action)
 
 def clear_images_folder(folder_path="/home/pi/food_scale/images/"):
-    """Deletes all files inside the specified folder."""
     if not os.path.exists(folder_path):
-        print(f"Folder {folder_path} does not exist.")
         return
-
     for filename in os.listdir(folder_path):
         file_path = os.path.join(folder_path, filename)
         try:
@@ -185,22 +185,21 @@ def clear_images_folder(folder_path="/home/pi/food_scale/images/"):
                 os.unlink(file_path)
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
-            print(f"Deleted: {filename}")
         except Exception as e:
             print(f"Failed to delete {file_path}. Reason: {e}")
 
 def update_model():
     folder_path = "/home/pi/food_scale/downloads/"
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-            print(f"Deleted: {filename}")
-        except Exception as e:
-            print(f"Failed to delete {file_path}. Reason: {e}")
+    if os.path.exists(folder_path):
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}. Reason: {e}")
 
     remote_name = "gdrive"
     remote_path = "export_to_pi"
@@ -210,40 +209,20 @@ def update_model():
         os.makedirs(local_destination)
 
     cmd = ["rclone", "copy", f"{remote_name}:{remote_path}", local_destination]
-
     try:
-        print(f"Starting download from {remote_name}:{remote_path}...")
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print("Download successful!")
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
         print(f"Error occurred: {e.stderr}")    
 
     cmd_final = ["imx500-package", "-i", "/home/pi/food_scale/downloads/packerOut.zip", "-o", "my_modelrpk"]
     try:
         subprocess.run(cmd_final, check=True)
-        print("Command executed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Command failed with error: {e}")
-
-    source_file = "/home/pi/food_scale/downloads/classes.txt"
-    destination_folder = "/home/pi/food_scale/my_modelrpk"
-    destination_path = os.path.join(destination_folder, "classes.txt")
-
-    if not os.path.exists(destination_folder):
-        os.makedirs(destination_folder)
-
-    try:
-        shutil.move(source_file, destination_path)
-        print(f"Successfully moved: {source_file} -> {destination_path}")
-    except FileNotFoundError:
-        print("Error: The source file does not exist.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
 
 def download_database():
     raw_data = database_sheet.get_all_records()
     transformed_data = {}
-
     for row in raw_data:
         food_name = row['Name']
         transformed_data[food_name] = {
@@ -252,32 +231,19 @@ def download_database():
             "fat": row['fat'],
             "kcal": row['kcal']
         }
-
     with open('food_database.json', 'w') as f:
         json.dump(transformed_data, f, indent=4)
-
-    print("Database exported successfully in the new format!")
+    print("Database exported successfully!")
 
 def upload_images():
-    cmd = [
-        "rclone", 
-        "copy", 
-        "/home/pi/food_scale/images/", 
-        "gdrive:/images_to_train"
-    ]
-    
+    cmd = ["rclone", "copy", "/home/pi/food_scale/images/", "gdrive:/images_to_train"]
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
         print("Upload successful!")
-        print("Output:", result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred while uploading: {e}")
-        print("Error output:", e.stderr)
-    except FileNotFoundError:
-        print("Error: rclone is not installed or not found in the system PATH.")
+    except Exception as e:
+        print(f"Upload error: {e}")
 
 def get_db():
-    """Reads the file and returns the current database dictionary."""
     if os.path.exists(DB_FILE) and os.path.getsize(DB_FILE) > 0:
         with open(DB_FILE, 'r') as f:
             try:
@@ -286,19 +252,26 @@ def get_db():
                 return {}
     return {}
 
-def update_db(name, nutrition_data):
-    """Reads, updates, and saves the database immediately."""
-    db = get_db()
-    db[name] = nutrition_data
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f, indent=4)
+async def async_tare():
+    """Sends the 'tare' command asynchronously to the Pico over BLE."""
+    global ble_client
+    if ble_client and ble_client.is_connected:
+        try:
+            await ble_client.write_gatt_char(CHAR_UUID, b"tare")
+            print("Tare command sent successfully to Pico!")
+        except Exception as e:
+            print(f"Failed to write tare command: {e}")
+    else:
+        print("Cannot tare: Pico is not connected via BLE.")
 
 def tare():
-    global readings
-    print("\nTaring... clearing scale baseline.")
-    hx.zero()
-    readings.clear()
-    print("Tare complete!\n")
+    """Thread-safe trigger bridge for taring the remote scale."""
+    global ble_loop
+    print("\nTaring scale remotely...")
+    if ble_loop and ble_loop.is_running():
+        asyncio.run_coroutine_threadsafe(async_tare(), ble_loop)
+    else:
+        print("BLE loop is not active.")
 
 def detection():
     global current_detected_food
@@ -314,7 +287,7 @@ def detection():
         db = get_db()
         for found_name in detected_objects:
             name = found_name.lower().strip()
-            current_detected_food = name  # Update global state to display on web
+            current_detected_food = name  
             print(f"Detected food: {name}")
             
             if name in db:
@@ -333,7 +306,7 @@ def detection():
                 ])
                 print(f"Logged {name} to Google Sheets.")
             else:
-                print(f"Food '{name}' not found in database. Add it first!")
+                print(f"Food '{name}' not found in database.")
 
 if __name__ == '__main__':
     threading.Thread(target=start_ble_thread, daemon=True).start()
